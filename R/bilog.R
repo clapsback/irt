@@ -756,7 +756,29 @@ wrap_text <- function(t, width = 80, tab = NULL, skip_tab = 0) {
 }
 
 
-
+                ##Suggest addition to prevent cutting anchored paramters down the middle##
+                wrap_text2 <- function(t, width = 70, tab = NULL, skip_tab = 0) {
+                  # Add tab to all lines except to the first line.
+                  if (!is.null(tab)) {
+                    r <- strwrap(t, width = width)
+                    r <- c(r[skip_tab], paste0(
+                      tab, strwrap(paste0(r[setdiff(1:length(r), skip_tab)],
+                                          collapse = "\n"),
+                                   width = width - nchar(tab) - 1)))
+                    return(paste0(r, collapse = "\n"))
+                  }
+                  r <- gsub(paste0("(.{", width, "})"), "\\1\n", t)
+                  # do not allow the first character in a line to be a comma ",":
+                  r=t
+                  for (i in 1:floor(nchar(r)/width)) {
+                    TEMP=unlist(gregexpr(',', r))
+                    substr(r, max(TEMP[TEMP<(width*i)]), max(TEMP[TEMP<(width*i)])) <- "@"
+                  }
+                  
+                  r=gsub("@", paste0(",\n", tab), r)
+                  r=gsub("@", paste0(",\n", tab), r)
+                  return(r)
+                }
 
 #' Item Calibration via BILOG-MG
 #'
@@ -1706,29 +1728,50 @@ est_bilog <- function(
       ### Setup the "FIX = " part; fix_p="fix_pattern" ###
       fix_p <- rle(1 * (items %in% fix$item_id))
       fix_p <- paste0(fix_p$values, "(0)", fix_p$lengths, collapse = ",")
-      temp_text <- paste0(temp_text, ",\n",
-                          wrap_text(paste0(tab, "FIX = (", fix_p, ")")))
-
+      #temp_text <- paste0(temp_text, ",\n",
+      #                    wrap_text(paste0(tab, "FIX = (", fix_p, ")")))     #Suggest change below to use wrap_text2 to prevent incorrect cutting of values
+      temp_text <- paste0(temp_text, ",\n", wrap_text2(paste0(tab, "FIX = (", fix_p, ")"))) #Suggested addition
+      
       ### Write the PRNAME file: ###
-      temp_par <- data.frame(par = c("a", "b", "c"),
-                             bilog_name = c("SLOPE", "THRESHLD", "GUESS"),
-                             default = c(1, 0, 0))
-      for (i in 1:nrow(temp_par)) {
-        if (temp_par$par[i] %in% colnames(fix)) {
-          temp <- rep(temp_par$default[i], length(items))
-          for (j in 1:nrow(fix)) {
-            temp[fix$item_id[j] == items] <- fix[j, temp_par$par[i]]
-          }
-          temp_text <- paste0(
-            temp_text, ",\n", wrap_text(paste0(
-              tab, temp_par$bilog_name[i], " = (",
-              paste0(temp, collapse = ","), ")")))
+      #Suggest change below to use wrap_text2 to prevent incorrect cutting of values
+      #temp_par <- data.frame(par = c("a", "b", "c"),
+      #                       bilog_name = c("SLOPE", "THRESHLD", "GUESS"),
+      #                       default = c(1, 0, 0))
+      #for (i in 1:nrow(temp_par)) {
+      #  if (temp_par$par[i] %in% colnames(fix)) {
+      #    temp <- rep(temp_par$default[i], length(items))
+      #    for (j in 1:nrow(fix)) {
+      #      temp[fix$item_id[j] == items] <- fix[j, temp_par$par[i]]
+      #    }
+      #    temp_text <- paste0(
+      #      temp_text, ",\n", wrap_text(paste0(
+      #        tab, temp_par$bilog_name[i], " = (",
+      #        paste0(temp, collapse = ","), ")")))
           # temp_text <- paste0(
           #   temp_text, ",\n", wrap_text(paste0(
           #     tab, temp_par$bilog_name[i], " = (",
           #     paste0(fix[, temp_par$par[i]], collapse = ","), ")")))
-        }
-      }
+      #  }
+      #}
+      
+      #Suggested addition
+                            temp_par <- data.frame(par = c("a", "b", "c"),
+                                             bilog_name = c("SLOPE", "THRESHLD", "GUESS"),
+                                             default = c(1, 0, 0))
+                      for (i in 1:nrow(temp_par)) {
+                        if (temp_par$par[i] %in% colnames(fix)) {
+                          temp <- rep(temp_par$default[i], length(items))
+                          for (j in 1:nrow(fix)) {
+                            temp[fix$item_id[j] == items] <- fix[j, temp_par$par[i]]
+                          }
+                          temp_text <- paste0(
+                            temp_text, ",\n", wrap_text2(paste0(
+                              tab, temp_par$bilog_name[i], " = (",
+                              paste0(temp, collapse = ","), ")")))
+                        }
+                      }
+      
+      
       # fix_copy <- fix
       # fix_copy$item_id <- which(items %in% fix$item_id)
       # fix_copy[] <- lapply(fix_copy, as.character)
